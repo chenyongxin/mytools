@@ -35,7 +35,7 @@ class BinaryReader(object):
         """
         self.nrows      = 0             # number of rows
         self.ncols      = 0             # number of columns
-        self.data       = np.array(())  # data array
+        self.data       = []            # data array
         self.prec       = prec          # precision
         self.fh         = None          # file handle
         self.customized = False         # customized data flag
@@ -43,7 +43,7 @@ class BinaryReader(object):
         self.nbytes     = 0             # size of a line in bytes
         if name is not None:
             self.file(name)
-    
+            
     def file(self, name):
         """Open a binary file and return file handle."""
         self.fh = open(name, mode='rb')
@@ -62,8 +62,8 @@ class BinaryReader(object):
         self.nbytes     = calcsize(fmt)     
         self.ncols      = len(fmt)          
         self.customized = True    
-    
-    def sort(self, ncols=None, trunc=None):
+        
+    def sort(self, ncols=None, trunc=None, stride=1):
         """
         Sort time series data into a 2D array.
         
@@ -73,6 +73,8 @@ class BinaryReader(object):
             Number of columns in one line.
         trunc: int, optinoal
             Number of rows in truncated data. Use it to reduce data size.
+        stride: int, optional
+            Increment step. 1 is the default step. A large value to save space.
         """
         # if not customize format, use the default prec to make format.
         if self.customized is False:
@@ -84,15 +86,19 @@ class BinaryReader(object):
         # stack data line by line
         toTruncate = True if type(trunc) is int else False
         count = 0
+        nlines = 0
+        self.data = []                               # re-initialise with an empty list 
         while True:
-             buffer = self.fh.read(self.nbytes)
-             if len(buffer) != self.nbytes: break    # reaches EOF
-             newline = np.array(unpack(self.fmt, buffer))
-             self.data = \
-                 np.vstack((self.data, newline)) if self.data.size else newline
-             count += 1
-             if toTruncate: 
-                 if count >= trunc: break
+            if toTruncate:
+                 if nlines >= trunc: break 
+            for i in range(stride):
+                buffer = self.fh.read(self.nbytes)   # discard the first (stride-1) readings
+                nlines += 1                          # number of lines be read 
+                if len(buffer) != self.nbytes: break # reaches EOF, end jump-readings
+            if len(buffer) != self.nbytes: break     # reaches EOF, do not record it, finish
+            self.data.append(unpack(self.fmt, buffer)) # unpack to a tuple
+            count += 1                               # do increment outside
+        self.data = np.array(self.data)              # convert to an array
         self.nrows = count
 
     def shape(self):
@@ -112,12 +118,12 @@ class BinaryReader(object):
         
 
 if __name__ == "__main__":
-   
+    
     print('Save double-precision data 1-9 in test.bin. \n')
     with open('test.bin', 'wb') as fh:
         a = np.linspace(1,9,9)
         fh.write(pack("d"*9, *a))
-    
+        
     print('1. Read data to a 3*3 array')
     b = BinaryReader('test.bin')
     b.sort(ncols=3)

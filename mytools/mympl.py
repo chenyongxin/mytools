@@ -6,6 +6,7 @@ Customize matplotlib settings.
 """
 
 import os
+import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -107,16 +108,25 @@ class MyMPL(object):
         return self.fig
         
     def subplots(self, nrows=1, ncols=1, sharex=False, sharey=False):
-        """Add a set of subplots to this figure."""
+        """
+        Add a set of subplots to this figure. Note if this function is called,
+        the original axes is firstly removed then the ax points to the first 
+        entry of axes."""
         self.axes = self.fig.subplots(nrows=nrows, ncols=ncols, 
                                       sharex=sharex, sharey=sharey)
+        # remove the old one - this is to remove all axes
+        self.ax.remove()          
+        # Set pointer to the first subfigure of subplots
+        self.ax = np.reshape(self.axes, (self.axes.size,))[0]   
+        plt.sca(self.ax)
+        
         
     def savefig(self, name, suf='pdf', dpi=300):
         """
         Save figure with info.
         Save XY plots with pdf format, and contour with png. Default pdf.
         """
-        self.fig.savefig(name+"_wa{}.".format(self.width)+suf)
+        self.fig.savefig(name+"_wa{}.".format(self.width)+suf, dpi=dpi)
 
     # Font
     def set_file(self, file=None):
@@ -248,24 +258,22 @@ def get_figure_size(w=0.7, rb=1.0, wp=210, ratio=0.6):
 # This is similar with Matlab plot.
 mypreset = {
     'family'   : None,
-    'fname'    : os.path.join(rcParams["datapath"], "fonts/ttf/Helvetica.ttf"),
+    'fname'    : os.path.join(os.environ["HOME"], "Documents/fonts/Helvetica.ttf"),
     'usetex'   : False,
     'mathtext' : 'cm',
     'fontsize' : 10,
-    'tick_dir' : 'in',
+    'tick_dir' : 'out',
     'frameon'  : False,
     'nospines' : {},           # {"top", "bottom", "left", "right"}
-    'tick_params': {"bottom":True, "left":True, "top":True, "right":True} 
+    'tick_params': {"bottom":True, "left":True, "top":False, "right":False} 
     }
 
 
 if __name__ == '__main__':
-    import numpy as np
     n = 100
     t = np.linspace(0, np.pi*2, n)
     sin = np.sin(t)
     cos = np.cos(t)
-    #mypreset['fname'] = None                # disable the rendering font
     a = MyMPL(mypreset)
     #a = MyMPL()                             # use the default one
     a.set_prop()                             # this is needed
